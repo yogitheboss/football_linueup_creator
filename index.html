@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Football Lineup Maker</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+
+<!-- ── Header ─────────────────────────────────────────── -->
+<header>
+  <span style="font-size:24px">⚽</span>
+  <div>
+    <h1>Football Lineup Maker</h1>
+    <p>Drag players on the pitch &middot; Double-click to rename &middot; Save as image</p>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- ── Sidebar ────────────────────────────────────────── -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Team Name</div>
+      <input class="text-input" id="teamNameInput" type="text" value="My Team" maxlength="30" placeholder="Team name">
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Formation</div>
+      <div class="formation-grid" id="formationGrid"><!-- rendered by JS --></div>
+    </div>
+
+    <div class="sidebar-section" style="flex:1">
+      <div class="sidebar-label">Players &mdash; click name to edit</div>
+      <div class="player-list" id="playerList"><!-- rendered by JS --></div>
+    </div>
+
+    <div class="sidebar-section">
+      <button class="btn btn-ghost"    id="importJsonBtn">Load JSON Lineup</button>
+      <button class="btn btn-ghost"    id="resetBtn">Reset Positions</button>
+      <button class="btn btn-primary"  id="saveBtn">Save as Image</button>
+    </div>
+
+  </aside>
+
+  <!-- ── Canvas (pitch + bench) ────────────────────────── -->
+  <div class="field-wrapper">
+    <div id="canvas">
+
+      <!-- Pitch -->
+      <div id="field">
+
+        <!-- SVG pitch markings -->
+        <svg class="pitch-svg" viewBox="0 0 460 690" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <style>
+              .pm      { fill:none; stroke:rgba(255,255,255,0.82); stroke-width:1.8; }
+              .pm-fill { fill:rgba(255,255,255,0.82); stroke:none; }
+            </style>
+          </defs>
+          <rect class="pm" x="22" y="22" width="416" height="646"/>
+          <line   class="pm"      x1="22" y1="345" x2="438" y2="345"/>
+          <circle class="pm"      cx="230" cy="345" r="60"/>
+          <circle class="pm-fill" cx="230" cy="345" r="3.5"/>
+          <rect   class="pm" x="110" y="22" width="240" height="116"/>
+          <rect   class="pm" x="165" y="22" width="130" height="50"/>
+          <rect   class="pm" x="189" y="8"  width="82"  height="16"/>
+          <circle class="pm-fill" cx="230" cy="96" r="3"/>
+          <path   class="pm" d="M183,138 A60,60 0 0,1 277,138"/>
+          <rect   class="pm" x="110" y="552" width="240" height="116"/>
+          <rect   class="pm" x="165" y="618" width="130" height="50"/>
+          <rect   class="pm" x="189" y="666" width="82"  height="16"/>
+          <circle class="pm-fill" cx="230" cy="594" r="3"/>
+          <path   class="pm" d="M183,552 A60,60 0 0,0 277,552"/>
+          <path class="pm" d="M22,30  Q30,22 30,22"/>
+          <path class="pm" d="M430,22 Q438,22 438,30"/>
+          <path class="pm" d="M22,660 Q22,668 30,668"/>
+          <path class="pm" d="M438,660 Q438,668 430,668"/>
+        </svg>
+
+        <!-- Pitch watermarks (updated by render.js) -->
+        <div class="field-team-label"      id="fieldTeamLabel">MY TEAM</div>
+        <div class="field-formation-label" id="fieldFormationLabel">4-4-2</div>
+
+        <!-- Formation player tokens injected by render.js -->
+      </div>
+
+      <!-- Bench — extra players live here -->
+      <div id="bench">
+        <span class="bench-label">Bench</span>
+        <!-- Extra player tokens injected by render.js -->
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- ── JSON Import Modal ───────────────────────────────── -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Load JSON Lineup</div>
+        <div class="modal-subtitle">Paste your lineup JSON below and click Apply</div>
+      </div>
+      <button class="modal-close" id="modalCloseBtn">&times;</button>
+    </div>
+
+    <textarea
+      class="json-textarea"
+      id="jsonTextarea"
+      spellcheck="false"
+      placeholder='{
+  "teamName": "FC United",
+  "formation": "4-3-3",
+  "players": [
+    { "name": "Alex Turner",   "pos": "GK" },
+    { "name": "Sam Rivera",    "pos": "LB" },
+    { "name": "Jordan Lee",    "pos": "CB" },
+    { "name": "Casey Morgan",  "pos": "CB" },
+    { "name": "Riley Chen",    "pos": "RB" },
+    { "name": "Blake Torres",  "pos": "CM" },
+    { "name": "Quinn Adams",   "pos": "CM" },
+    { "name": "Drew Parker",   "pos": "CM" },
+    { "name": "Jamie Brooks",  "pos": "LW" },
+    { "name": "Morgan Ellis",  "pos": "ST" },
+    { "name": "Avery Scott",   "pos": "RW" }
+  ],
+  "extras": [
+    { "name": "Sub Player",   "pos": "SUB" },
+    { "name": "Reserve GK",  "pos": "GK"  }
+  ]
+}'></textarea>
+
+    <div class="modal-error" id="jsonError"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost"  id="copyJsonBtn">Copy Current as JSON</button>
+      <button class="btn btn-ghost"  onclick="closeImportModal()">Cancel</button>
+      <button class="btn btn-blue"   id="applyJsonBtn">Apply</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Scripts (load order matters) ───────────────────── -->
+<script src="js/formations.js"></script>
+<script src="js/state.js"></script>
+<script src="js/drag.js"></script>
+<script src="js/render.js"></script>
+<script src="js/save.js"></script>
+<script src="js/json-import.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>
