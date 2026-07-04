@@ -23,12 +23,16 @@ function initPlayers(formationKey) {
   const positions = FORMATIONS[formationKey];
   const oldNames  = state.players.map(p => p.name);
 
+  const oldNumbers = state.players.map(p => p.number);
+
   state.players = positions.map((p, i) => ({
-    id:   i + 1,
-    name: oldNames[i] !== undefined ? oldNames[i] : `Player ${i + 1}`,
-    pos:  p.pos,
-    x:    p.x,
-    y:    p.y,
+    id:     i + 1,
+    number: oldNumbers[i] !== undefined ? oldNumbers[i] : i + 1,
+    name:   oldNames[i]   !== undefined ? oldNames[i]   : `Player ${i + 1}`,
+    pos:    p.pos,
+    x:      p.x,
+    y:      p.y,
+    zone:   'field',
   }));
 }
 
@@ -50,12 +54,15 @@ function benchY(idx) { return idx < BENCH_X_COLS ? BENCH_Y_ROW1 : BENCH_Y_ROW2; 
  */
 function addExtra() {
   const idx = state.extras.length;
+  const id  = _nextExtraId++;
   state.extras.push({
-    id:   _nextExtraId++,
-    name: `Player ${_nextExtraId - 1}`,
-    pos:  'SUB',
-    x:    benchX(idx),
-    y:    benchY(idx),
+    id,
+    number: id,
+    name:   `Player ${id}`,
+    pos:    'SUB',
+    x:      benchX(idx),
+    y:      benchY(idx),
+    zone:   'bench',
   });
 }
 
@@ -68,6 +75,16 @@ function removeExtra(id) {
 }
 
 // ── JSON import / export ─────────────────────────────────
+
+/**
+ * Coerce a jersey number from JSON into a sane 1–99 integer.
+ * Accepts numbers or numeric strings; falls back to `fallback`.
+ */
+function normaliseNumber(value, fallback) {
+  const n = parseInt(value, 10);
+  if (Number.isNaN(n)) return fallback;
+  return Math.max(1, Math.min(99, n));
+}
 
 /**
  * Load a full lineup from a parsed JSON object.
@@ -97,22 +114,29 @@ function loadFromJSON(data) {
 
   const defaults = FORMATIONS[formation];
   state.players = players.map((p, i) => ({
-    id:   i + 1,
-    name: String(p.name || `Player ${i + 1}`).slice(0, 20),
-    pos:  String(p.pos  || defaults[i].pos),
-    x:    typeof p.x === 'number' ? Math.max(3, Math.min(97, p.x)) : defaults[i].x,
-    y:    typeof p.y === 'number' ? Math.max(3, Math.min(97, p.y)) : defaults[i].y,
+    id:     i + 1,
+    number: normaliseNumber(p.number, i + 1),
+    name:   String(p.name || `Player ${i + 1}`).slice(0, 20),
+    pos:    String(p.pos  || defaults[i].pos),
+    x:      typeof p.x === 'number' ? Math.max(3, Math.min(97, p.x)) : defaults[i].x,
+    y:      typeof p.y === 'number' ? Math.max(3, Math.min(97, p.y)) : defaults[i].y,
+    zone:   'field',
   }));
 
   // Apply extras (optional field)
   if (Array.isArray(data.extras)) {
-    state.extras = data.extras.map((p, i) => ({
-      id:   _nextExtraId++,
-      name: String(p.name || `Player ${_nextExtraId - 1}`).slice(0, 20),
-      pos:  String(p.pos  || 'SUB'),
-      x:    typeof p.x === 'number' ? Math.max(3, Math.min(97, p.x)) : benchX(i),
-      y:    typeof p.y === 'number' ? Math.max(3, Math.min(97, p.y)) : benchY(i),
-    }));
+    state.extras = data.extras.map((p, i) => {
+      const id = _nextExtraId++;
+      return {
+        id,
+        number: normaliseNumber(p.number, id),
+        name:   String(p.name || `Player ${id}`).slice(0, 20),
+        pos:    String(p.pos  || 'SUB'),
+        x:      typeof p.x === 'number' ? Math.max(3, Math.min(97, p.x)) : benchX(i),
+        y:      typeof p.y === 'number' ? Math.max(3, Math.min(97, p.y)) : benchY(i),
+        zone:   'bench',
+      };
+    });
   } else {
     state.extras = [];
   }
@@ -128,10 +152,10 @@ function exportToJSON() {
   const obj = {
     teamName:  state.teamName,
     formation: state.formation,
-    players:   state.players.map(({ name, pos, x, y }) => ({ name, pos, x, y })),
+    players:   state.players.map(({ number, name, pos, x, y }) => ({ number, name, pos, x, y })),
   };
   if (state.extras.length > 0) {
-    obj.extras = state.extras.map(({ name, pos, x, y }) => ({ name, pos, x, y }));
+    obj.extras = state.extras.map(({ number, name, pos, x, y }) => ({ number, name, pos, x, y }));
   }
   return JSON.stringify(obj, null, 2);
 }

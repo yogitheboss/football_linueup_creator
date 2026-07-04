@@ -62,9 +62,26 @@ function makePlayerItem(player, isExtra) {
   item.className = 'player-item' + (isExtra ? ' extra-item' : '');
   item.dataset.id = player.id;
 
-  const num = document.createElement('div');
-  num.className = 'player-num' + (player.pos === 'GK' ? ' gk' : isExtra ? ' extra' : '');
-  num.textContent = player.id;
+  // Editable jersey number
+  const num = document.createElement('input');
+  num.className   = 'player-num' + (player.pos === 'GK' ? ' gk' : isExtra ? ' extra' : '');
+  num.type        = 'number';
+  num.min         = 1;
+  num.max         = 99;
+  num.value       = player.number;
+  num.title       = 'Jersey number';
+  num.dataset.id  = player.id;
+  num.addEventListener('input', () => {
+    const n = parseInt(num.value, 10);
+    if (!Number.isNaN(n)) {
+      player.number = Math.max(1, Math.min(99, n));
+      syncTokenNumber(player);
+    }
+  });
+  num.addEventListener('blur', () => {
+    // Snap the field back to the committed value (handles empty / out-of-range).
+    num.value = player.number;
+  });
 
   const inp = document.createElement('input');
   inp.className  = 'player-name-input';
@@ -124,8 +141,12 @@ function renderPlayerTokens() {
   const field = document.getElementById('field');
   const bench = document.getElementById('bench');
 
-  state.players.forEach(p => field.appendChild(makeToken(p, false)));
-  state.extras.forEach(p  => bench.appendChild(makeToken(p, true)));
+  // Place each token in whichever zone it currently belongs to. A token's
+  // zone can change when it is dragged between the pitch and the bench.
+  const zoneOf = (p, defaultZone) => (p.zone === 'field' || p.zone === 'bench') ? p.zone : defaultZone;
+
+  state.players.forEach(p => (zoneOf(p, 'field') === 'bench' ? bench : field).appendChild(makeToken(p, false)));
+  state.extras.forEach(p  => (zoneOf(p, 'bench') === 'field' ? field : bench).appendChild(makeToken(p, true)));
 }
 
 /** Append only a single new extra token to the bench (no full re-render). */
@@ -145,7 +166,7 @@ function makeToken(player, isExtra) {
 
   const circle = document.createElement('div');
   circle.className   = 'player-circle';
-  circle.textContent = player.id;
+  circle.textContent = player.number;
 
   const nameEl = document.createElement('div');
   nameEl.className   = 'token-name';
@@ -159,13 +180,9 @@ function makeToken(player, isExtra) {
     openInlineEditor(token, player);
   });
 
-  if (isExtra) {
-    // Drag within the bench; tighter y clamp so tokens don't escape the strip
-    setupDrag(token, player, document.getElementById('bench'),
-      { xMin: 3, xMax: 97, yMin: 10, yMax: 90 });
-  } else {
-    setupDrag(token, player, document.getElementById('field'));
-  }
+  // Tokens drag freely across both the pitch and the bench; the drag
+  // handler re-parents them as they cross the boundary.
+  setupDrag(token, player);
 
   return token;
 }
@@ -179,6 +196,12 @@ function makeToken(player, isExtra) {
 function syncTokenName(player) {
   const token = document.querySelector(`.player-token[data-id="${player.id}"]`);
   if (token) token.querySelector('.token-name').textContent = player.name;
+}
+
+/** Update the pitch token's jersey number without a full re-render. */
+function syncTokenNumber(player) {
+  const token = document.querySelector(`.player-token[data-id="${player.id}"]`);
+  if (token) token.querySelector('.player-circle').textContent = player.number;
 }
 
 /**

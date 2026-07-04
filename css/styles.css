@@ -131,19 +131,30 @@ header p {
 .player-item:focus-within { border-color: #3b82f6; }
 
 .player-num {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   background: #2563eb;
+  border: none;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
+  text-align: center;
+  font-size: 11px;
   font-weight: 700;
+  font-family: inherit;
   color: #fff;
   flex-shrink: 0;
+  padding: 0;
+  outline: none;
+  cursor: text;
+  transition: box-shadow 0.15s;
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
-.player-num.gk { background: #d97706; }
+.player-num:focus { box-shadow: 0 0 0 2px rgba(59,130,246,0.6); }
+/* Hide native number spinners */
+.player-num::-webkit-outer-spin-button,
+.player-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.player-num.gk    { background: #d97706; }
+.player-num.extra { background: #4b5563; }
 
 .player-name-input {
   flex: 1;
@@ -165,7 +176,6 @@ header p {
 
 /* Extra player rows */
 .extra-item { border-color: #374151; opacity: 0.9; }
-.player-num.extra { background: #4b5563; }
 
 .remove-btn {
   background: none;

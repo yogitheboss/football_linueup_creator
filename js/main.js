@@ -12,8 +12,9 @@ document.getElementById('teamNameInput').addEventListener('input', (e) => {
 document.getElementById('resetBtn').addEventListener('click', () => {
   const positions = FORMATIONS[state.formation];
   state.players.forEach((p, i) => {
-    p.x = positions[i].x;
-    p.y = positions[i].y;
+    p.x    = positions[i].x;
+    p.y    = positions[i].y;
+    p.zone = 'field';
   });
   renderPlayerTokens();
 });
